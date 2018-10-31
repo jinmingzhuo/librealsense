@@ -31,20 +31,20 @@ int main(int argc, char * argv[]) try
     //Calling pipeline's start() without any additional parameters will start the first device
     // with its default streams.
     //The start function returns the pipeline profile which the pipeline used to start the device
-    rs2::pipeline_profile profile = pipe.start();
+    rs2::pipeline_profile profile = pipe.start();//调用相机
 
     // Each depth camera might have different units for depth pixels, so we get it here
     // Using the pipeline's profile, we can retrieve the device that the pipeline uses
-    float depth_scale = get_depth_scale(profile.get_device());
+    float depth_scale = get_depth_scale(profile.get_device());//depth_scale深度比例单位
 
     //Pipeline could choose a device that does not have a color stream
     //If there is no color stream, choose to align depth to another stream
-    rs2_stream align_to = find_stream_to_align(profile.get_streams());
+    rs2_stream align_to = find_stream_to_align(profile.get_streams());//创建一个align对象
 
     // Create a rs2::align object.
     // rs2::align allows us to perform alignment of depth frames to others frames
     //The "align_to" is the stream type to which we plan to align depth frames.
-    rs2::align align(align_to);
+    rs2::align align(align_to);//对两帧进行对齐,把原图像转换为align_to类型的
 
     // Define a variable for controlling the distance to clip
     float depth_clipping_distance = 1.f;
@@ -53,6 +53,8 @@ int main(int argc, char * argv[]) try
     {
         // Using the align object, we block the application until a frameset is available
         rs2::frameset frameset = pipe.wait_for_frames();
+        //阻塞程序, 直到返回一个frameset,包含一组frames和an interface ,wate_for_frames 出现错误会尝试连接新设备,  并返回一个新帧,
+        //如果设备改变了,会使用if(profile_changed( , )){} 来更新配置⬇
 
         // rs2::pipeline::wait_for_frames() can replace the device it uses in case of device error or disconnection.
         // Since rs2::align is aligning depth to some other stream, we need to make sure that the stream was not changed
@@ -67,7 +69,7 @@ int main(int argc, char * argv[]) try
         }
 
         //Get processed aligned frame
-        auto processed = align.process(frameset);
+        auto processed = align.process(frameset);//处理对齐帧
 
         // Trying to get both other and aligned depth frames
         rs2::video_frame other_frame = processed.first(align_to);
@@ -81,7 +83,7 @@ int main(int argc, char * argv[]) try
         // Passing both frames to remove_background so it will "strip" the background
         // NOTE: in this example, we alter the buffer of the other frame, instead of copying it and altering the copy
         //       This behavior is not recommended in real application since the other frame could be used elsewhere
-        remove_background(other_frame, aligned_depth_frame, depth_scale, depth_clipping_distance);
+        remove_background(other_frame, aligned_depth_frame, depth_scale, depth_clipping_distance);//剥离背景
 
         // Taking dimensions of the window for rendering purposes
         float w = static_cast<float>(app.width());
@@ -175,27 +177,28 @@ void render_slider(rect location, float& clipping_dist)
     }
     ImGui::End();
 }
-
+//移除背景的函数,背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景背景
 void remove_background(rs2::video_frame& other_frame, const rs2::depth_frame& depth_frame, float depth_scale, float clipping_dist)
 {
     const uint16_t* p_depth_frame = reinterpret_cast<const uint16_t*>(depth_frame.get_data());
     uint8_t* p_other_frame = reinterpret_cast<uint8_t*>(const_cast<void*>(other_frame.get_data()));
-
+    //指向缓冲区的指针,could alt the color image, instead of creating a new buffer
+    
     int width = other_frame.get_width();
     int height = other_frame.get_height();
     int other_bpp = other_frame.get_bytes_per_pixel();
-
+// go over each pixel of the frame⬇
     #pragma omp parallel for schedule(dynamic) //Using OpenMP to try to parallelise the loop
     for (int y = 0; y < height; y++)
     {
         auto depth_pixel_index = y * width;
         for (int x = 0; x < width; x++, ++depth_pixel_index)
         {
-            // Get the depth value of the current pixel
+            // Get the depth value of the current pixel  计算当前像素的深度值
             auto pixels_distance = depth_scale * p_depth_frame[depth_pixel_index];
 
             // Check if the depth value is invalid (<=0) or greater than the threashold
-            if (pixels_distance <= 0.f || pixels_distance > clipping_dist)
+            if (pixels_distance <= 0.f || pixels_distance > clipping_dist)//如果pixels_distance <或者>, 则去掉这个像素点
             {
                 // Calculate the offset in other frame's buffer to current pixel
                 auto offset = depth_pixel_index * other_bpp;
