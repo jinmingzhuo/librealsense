@@ -13,7 +13,7 @@ int main(int argc, char * argv[]) try
     window app(1280, 720, "RealSense Capture Example");
     // Declare two textures on the GPU, one for color and one for depth
     texture depth_image, color_image;
-
+//深度数据提供12bit的灰度图, 一般将其转换为RGB图像, ⬇
     // Declare depth colorizer for pretty visualization of depth data
     rs2::colorizer color_map;
 
@@ -25,7 +25,7 @@ int main(int argc, char * argv[]) try
     while(app) // Application still alive?
     {
         rs2::frameset data = pipe.wait_for_frames(); // Wait for next set of frames from the camera
-
+又是一个wait程序, 阻塞程序 ⬆
         rs2::frame depth = color_map.process(data.get_depth_frame()); // Find and colorize the depth data
         rs2::frame color = data.get_color_frame();            // Find the color data
 
